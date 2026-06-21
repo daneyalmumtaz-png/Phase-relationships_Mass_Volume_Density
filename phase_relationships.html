@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<!-- Phase relationships (faasisuhteet), OpenGeo Basic.
+     Working language English, with the key Finnish geotechnical terms kept as a
+     short gloss in parentheses (about 25% Finnish). Finnish terms from the
+     Finnish geotechnical literature, to be checked by Altti.
+     Three acts: Predict (spark) -> Simulate -> Insight.
+     Units: volumes cm3, masses g, densities g/cm3, unit weights kN/m3, g = 9.81.
+     Edit rule: volume is the anchor. Change a mass and the density responds;
+     change a density and the mass responds; change a volume and density holds. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase relationships (faasisuhteet)</title>
+<style>
+  :root{
+    --bg:#f5f6f4; --panel:#fff; --ink:#1f2a24; --muted:#5d6b62; --line:#d8ddd6;
+    --accent:#2f6f4f; --fi:#2f6f4f;
+    --solids:#8a6d4b; --water:#2a7fb8; --air:#e9eef0; --flash:#cde8d3;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.45}
+  header{padding:16px 22px;border-bottom:1px solid var(--line);background:var(--panel)}
+  h1{font-size:1.2rem;margin:0 0 3px}
+  header p{margin:0;color:var(--muted);font-size:.84rem}
+  /* Finnish gloss */
+  .fi{color:var(--fi);font-weight:400;font-size:.92em}
+  .steps{display:flex;gap:8px;padding:12px 22px;background:var(--panel);border-bottom:1px solid var(--line)}
+  .steps button{flex:1;max-width:230px;font:inherit;font-size:.86rem;padding:8px 10px;border:1px solid var(--line);
+    background:#fff;border-radius:8px;cursor:pointer;color:var(--muted);text-align:left}
+  .steps button .n{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;
+    background:#e7ebe6;color:var(--ink);font-weight:700;margin-right:7px;font-size:.8rem}
+  .steps button.active{border-color:var(--accent);color:var(--ink);background:#f3f8f3}
+  .steps button.active .n{background:var(--accent);color:#fff}
+  .steps button:disabled{opacity:.5;cursor:not-allowed}
+  main{max-width:1180px;margin:0 auto;padding:18px}
+  .act{display:none}
+  .act.show{display:block}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:16px}
+  .q{font-size:1.02rem;margin:0 0 12px}
+  .opts{display:flex;flex-direction:column;gap:8px}
+  .opts label{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);
+    border-radius:8px;cursor:pointer;font-size:.98rem}
+  .opts label:hover{border-color:var(--accent)}
+  .opts input{accent-color:var(--accent);width:18px;height:18px}
+  .opts label.chosen{background:#f3f8f3;border-color:var(--accent)}
+  .lead{font-size:.95rem;color:var(--muted);margin:0 0 14px}
+  .navrow{display:flex;justify-content:space-between;margin-top:8px}
+  button.go{font:inherit;font-size:.95rem;padding:10px 18px;border:1px solid var(--accent);background:var(--accent);
+    color:#fff;border-radius:8px;cursor:pointer}
+  button.go:disabled{opacity:.5;cursor:not-allowed}
+  button.ghost{font:inherit;font-size:.95rem;padding:10px 18px;border:1px solid var(--line);background:#fff;
+    color:var(--ink);border-radius:8px;cursor:pointer}
+  .sim{display:flex;flex-wrap:wrap;gap:18px}
+  .controls{flex:1 1 330px;min-width:300px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .stage{flex:1.3 1 420px;min-width:330px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+  canvas{width:100%;height:auto;display:block}
+  .grp{margin-bottom:14px;padding-bottom:12px;border-bottom:1px dashed var(--line)}
+  .grp:last-child{border-bottom:none;margin-bottom:0}
+  .grp h3{font-size:.94rem;margin:0 0 8px}
+  .ctl{margin:9px 0}
+  .ctl label{display:block;font-size:.82rem;margin-bottom:2px}
+  .ctl .line{display:flex;align-items:center;gap:8px}
+  input[type=range]{flex:1;accent-color:var(--accent)}
+  input[type=number]{width:78px;font:inherit;font-size:.9rem;padding:3px 6px;border:1px solid var(--line);border-radius:6px}
+  .val{min-width:74px;text-align:right;font-variant-numeric:tabular-nums;font-size:.9rem;font-weight:600}
+  .hint{font-size:.78rem;color:var(--muted);margin:2px 0 0}
+  .fb{font-size:.96rem;font-weight:600;margin:10px 0 0;min-height:1.2em}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .presets button{font:inherit;font-size:.8rem;padding:5px 10px;border:1px solid var(--line);background:#fff;border-radius:7px;cursor:pointer}
+  .presets button:hover{border-color:var(--accent);color:var(--accent)}
+  .results{margin-top:14px}
+  .results h3{font-size:.86rem;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);margin:14px 0 6px}
+  .rrow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:5px 0;border-bottom:1px solid #eef1ee}
+  .rrow .k{font-size:.92rem}
+  .rrow .v{font-variant-numeric:tabular-nums;font-weight:700;font-size:1.08rem;white-space:nowrap}
+  .rrow.hero .v{font-size:1.35rem;color:var(--accent)}
+  .rrow.flash{background:var(--flash)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Phase relationships <span class="fi">(faasisuhteet)</span></h1>
+  <p>Solids, water and air, and how the mix sets the soil's weight. Basic level.</p>
+</header>
+
+<nav class="steps" aria-label="Steps">
+  <button id="tab0" class="active" onclick="goAct(0)"><span class="n">1</span>Predict</button>
+  <button id="tab1" onclick="goAct(1)" disabled><span class="n">2</span>Simulate</button>
+  <button id="tab2" onclick="goAct(2)" disabled><span class="n">3</span>Insight</button>
+</nav>
+
+<main>
+  <!-- ACT 1: PREDICT -->
+  <section id="act0" class="act show">
+    <p class="lead">Choose an answer to both. The simulation unlocks once you commit a prediction.</p>
+
+    <div class="card">
+      <p class="q">1. You have a bucket of dry sand. You pour water into it until it is soaked. Is the bucket heavier now?</p>
+      <div class="opts" data-q="s1">
+        <label><input type="radio" name="s1" value="a"> Heavier</label>
+        <label><input type="radio" name="s1" value="b"> Lighter</label>
+        <label><input type="radio" name="s1" value="c"> The same</label>
+      </div>
+      <p class="fb" id="s1fb"></p>
+    </div>
+
+    <div class="card">
+      <p class="q">2. Two identical jars are filled to the top with dry sand. One is poured in gently, the other is tapped and shaken so the sand settles. Which jar holds more sand?</p>
+      <div class="opts" data-q="s2">
+        <label><input type="radio" name="s2" value="a"> The gently poured jar</label>
+        <label><input type="radio" name="s2" value="b"> The tapped and shaken jar</label>
+        <label><input type="radio" name="s2" value="c"> Both the same</label>
+      </div>
+      <p class="fb" id="s2fb"></p>
+    </div>
+
+    <div class="navrow">
+      <span></span>
+      <button id="startBtn" class="go" disabled onclick="goAct(1)">Start simulation &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ACT 2: SIMULATE -->
+  <section id="act1" class="act">
+    <div class="sim">
+      <div class="controls">
+        <div class="presets" aria-label="Presets">
+          <button onclick="preset('sand')">Moist sand</button>
+          <button onclick="preset('clay')">Soft clay</button>
+          <button onclick="preset('silt')">Saturated silt</button>
+        </div>
+        <p class="hint">Rule: volume stays fixed when you change a mass or a density. Mass and density respond to each other.</p>
+
+        <div class="grp">
+          <h3>Solids <span class="fi">(kiintoaines)</span></h3>
+          <div class="ctl">
+            <label for="vs">Volume, Vs</label>
+            <div class="line"><input type="range" id="vs" min="20" max="150" step="1" value="100"><span class="val" id="vsV"></span></div>
+          </div>
+          <div class="ctl">
+            <label for="rs">Particle density, ρs <span class="fi">(raetiheys)</span></label>
+            <div class="line"><input type="range" id="rs" min="2.40" max="3.00" step="0.01" value="2.65"><span class="val" id="rsV"></span></div>
+          </div>
+          <div class="ctl">
+            <label for="ms">Mass, ms</label>
+            <div class="line"><input type="number" id="ms" min="40" max="450" step="1"><span style="font-size:.82rem;color:var(--muted)">g</span></div>
+          </div>
+        </div>
+
+        <div class="grp">
+          <h3>Water <span class="fi">(vesi)</span></h3>
+          <div class="ctl">
+            <label for="vw">Volume, Vw</label>
+            <div class="line"><input type="range" id="vw" min="0" max="150" step="1" value="40"><span class="val" id="vwV"></span></div>
+          </div>
+          <div class="ctl">
+            <label for="rw">Water density, ρw</label>
+            <div class="line"><input type="range" id="rw" min="0.95" max="1.05" step="0.01" value="1.00"><span class="val" id="rwV"></span></div>
+          </div>
+          <div class="ctl">
+            <label for="mw">Mass, mw</label>
+            <div class="line"><input type="number" id="mw" min="0" max="200" step="1"><span style="font-size:.82rem;color:var(--muted)">g</span></div>
+          </div>
+        </div>
+
+        <div class="grp">
+          <h3>Air <span class="fi">(ilma)</span></h3>
+          <div class="ctl">
+            <label for="va">Volume, Va</label>
+            <div class="line"><input type="range" id="va" min="0" max="150" step="1" value="20"><span class="val" id="vaV"></span></div>
+          </div>
+          <p class="hint">Air has no weight.</p>
+        </div>
+      </div>
+
+      <div class="stage">
+        <canvas id="cv" width="640" height="470"></canvas>
+        <div class="results">
+          <h3>Densities (g/cm³)</h3>
+          <div class="rrow" id="r_rs"><span class="k">Particle density ρs <span class="fi">(raetiheys)</span></span><span class="v"></span></div>
+          <div class="rrow" id="r_rw"><span class="k">Water density ρw</span><span class="v"></span></div>
+          <div class="rrow" id="r_rd"><span class="k">Dry density ρd <span class="fi">(kuivatiheys)</span></span><span class="v"></span></div>
+          <div class="rrow" id="r_rb"><span class="k">Bulk density ρ <span class="fi">(irtotiheys)</span></span><span class="v"></span></div>
+
+          <h3>Unit weights (kN/m³)</h3>
+          <div class="rrow hero" id="r_g"><span class="k">Bulk unit weight γ <span class="fi">(tilavuuspaino)</span></span><span class="v"></span></div>
+          <div class="rrow" id="r_gd"><span class="k">Dry γd <span class="fi">(kuivatilavuuspaino)</span></span><span class="v"></span></div>
+          <div class="rrow" id="r_gsat"><span class="k">Saturated γsat <span class="fi">(kyllästetty)</span></span><span class="v"></span></div>
+          <div class="rrow" id="r_gsub"><span class="k">Submerged γ′ <span class="fi">(tehokas)</span></span><span class="v"></span></div>
+
+          <h3>Other quantities</h3>
+          <div class="rrow hero" id="r_e"><span class="k">Void ratio e <span class="fi">(huokosluku)</span></span><span class="v"></span></div>
+          <div class="rrow" id="r_n"><span class="k">Porosity n <span class="fi">(huokoisuus)</span></span><span class="v"></span></div>
+          <div class="rrow" id="r_w"><span class="k">Water content w <span class="fi">(vesipitoisuus)</span></span><span class="v"></span></div>
+          <div class="rrow" id="r_sr"><span class="k">Saturation Sr <span class="fi">(kyllästysaste)</span></span><span class="v"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="navrow">
+      <button class="ghost" onclick="goAct(0)">&larr; Back</button>
+      <button class="go" onclick="goAct(2)">Insight &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ACT 3: INSIGHT -->
+  <section id="act2" class="act">
+    <p class="lead">Check what you took away.</p>
+
+    <div class="card">
+      <p class="q">1. You raised the water content <span class="fi">(vesipitoisuus)</span> by adding water mass, but kept all volumes the same. Which of these did NOT change?</p>
+      <div class="opts" data-q="i1">
+        <label><input type="radio" name="i1" value="a"> Void ratio e <span class="fi">(huokosluku)</span></label>
+        <label><input type="radio" name="i1" value="b"> Bulk unit weight γ</label>
+        <label><input type="radio" name="i1" value="c"> Water content w</label>
+      </div>
+      <p class="hint" id="i1fb"></p>
+    </div>
+
+    <div class="card">
+      <p class="q">2. The soil is dry (Sr = 0%). Which two unit weights are equal?</p>
+      <div class="opts" data-q="i2">
+        <label><input type="radio" name="i2" value="a"> Bulk γ and dry γd</label>
+        <label><input type="radio" name="i2" value="b"> Bulk γ and saturated γsat</label>
+        <label><input type="radio" name="i2" value="c"> Dry γd and submerged γ′</label>
+      </div>
+      <p class="hint" id="i2fb"></p>
+    </div>
+
+    <div class="navrow">
+      <button class="ghost" onclick="goAct(1)">&larr; Back to simulation</button>
+      <span></span>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const G = 9.81;  // unit weight (kN/m3) = density (g/cm3) * 9.81
+
+const st = { Vs:100, Vw:40, Va:20, rs:2.65, rw:1.00 };
+const RS=[2.40,3.00], RW=[0.95,1.05];
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+function ms(){ return st.rs*st.Vs; }
+function mw(){ return st.rw*st.Vw; }
+
+function calc(){
+  const Vt=st.Vs+st.Vw+st.Va, Vv=st.Vw+st.Va;
+  const m_s=ms(), m_w=mw(), mt=m_s+m_w;
+  const rd=m_s/Vt, rb=mt/Vt;
+  const e=Vv/st.Vs, n=Vv/Vt, w=m_s>0?m_w/m_s:0, Sr=Vv>0?st.Vw/Vv:0;
+  const gd=rd*G, g=rb*G, gw=st.rw*G;
+  const gsat=(m_s + Vv*st.rw)/Vt*G;
+  const gsub=gsat-gw;
+  return {Vt,Vv,m_s,m_w,rd,rb,e,n,w,Sr,gd,g,gsat,gsub};
+}
+
+const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+function draw(){
+  const c=calc();
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const top=46, H=360, colW=120, volX=120, wtX=380, maxV=Math.max(c.Vt,1);
+  ctx.textAlign="center";
+  ctx.fillStyle="#234B38"; ctx.font="bold 13px system-ui";
+  ctx.fillText("Volume", volX+colW/2, top-22);
+  ctx.fillText("Weight", wtX+colW/2, top-22);
+
+  const segs=[
+    {h: st.Va/maxV*H, col:"#e9eef0", label:"Air", gloss:"ilma", v:st.Va, dark:false},
+    {h: st.Vw/maxV*H, col:"#2a7fb8", label:"Water", gloss:"vesi", v:st.Vw, dark:true},
+    {h: st.Vs/maxV*H, col:"#8a6d4b", label:"Solids", gloss:"kiintoaines", v:st.Vs, dark:true},
+  ];
+  let y=top;
+  for(const s of segs){
+    ctx.fillStyle=s.col; ctx.fillRect(volX,y,colW,s.h);
+    ctx.strokeStyle="#fff"; ctx.strokeRect(volX,y,colW,s.h);
+    if(s.h>22){
+      ctx.fillStyle=s.dark?"#fff":"#3a423b"; ctx.font="bold 12px system-ui";
+      ctx.fillText(s.label, volX+colW/2, y+s.h/2-2);
+      ctx.font="10px system-ui"; ctx.fillText("("+s.gloss+")", volX+colW/2, y+s.h/2+12);
+    }
+    ctx.fillStyle="#1f2a24"; ctx.font="bold 15px system-ui"; ctx.textAlign="right";
+    ctx.fillText(s.v.toFixed(0)+" cm³", volX-10, y+Math.max(14,s.h/2));
+    ctx.textAlign="center";
+    y+=s.h;
+  }
+  ctx.strokeStyle="#9aa499"; ctx.strokeRect(volX,top,colW,H);
+  ctx.fillStyle="#1f2a24"; ctx.font="bold 13px system-ui";
+  ctx.fillText("Vt = "+c.Vt.toFixed(0)+" cm³", volX+colW/2, top+H+20);
+
+  const mt=c.m_s+c.m_w, maxM=Math.max(mt,1);
+  const wsegs=[
+    {h:c.m_w/maxM*H, col:"#2a7fb8", label:"Water", m:c.m_w},
+    {h:c.m_s/maxM*H, col:"#8a6d4b", label:"Solids", m:c.m_s},
+  ];
+  y=top+(H - (c.m_w+c.m_s)/maxM*H);
+  for(const s of wsegs){
+    ctx.fillStyle=s.col; ctx.fillRect(wtX,y,colW,s.h);
+    ctx.strokeStyle="#fff"; ctx.strokeRect(wtX,y,colW,s.h);
+    if(s.h>20){ ctx.fillStyle="#fff"; ctx.font="bold 12px system-ui"; ctx.textAlign="center";
+      ctx.fillText(s.label, wtX+colW/2, y+s.h/2+4); }
+    ctx.fillStyle="#1f2a24"; ctx.font="bold 15px system-ui"; ctx.textAlign="left";
+    ctx.fillText(s.m.toFixed(0)+" g", wtX+colW+10, y+Math.max(14,s.h/2));
+    ctx.textAlign="center";
+    y+=s.h;
+  }
+  ctx.strokeStyle="#e3e7e1"; ctx.strokeRect(wtX,top,colW,H);
+}
+
+function setRow(id,val,flash){
+  const el=document.getElementById(id); el.querySelector(".v").textContent=val;
+  if(flash){ el.classList.add("flash"); setTimeout(()=>el.classList.remove("flash"),180); }
+}
+function render(flashDensity){
+  const c=calc();
+  setRow("r_rs", st.rs.toFixed(2), flashDensity);
+  setRow("r_rw", st.rw.toFixed(2), flashDensity);
+  setRow("r_rd", c.rd.toFixed(2));
+  setRow("r_rb", c.rb.toFixed(2));
+  setRow("r_g",  c.g.toFixed(1)+" kN/m³");
+  setRow("r_gd", c.gd.toFixed(1)+" kN/m³");
+  setRow("r_gsat", c.gsat.toFixed(1)+" kN/m³");
+  setRow("r_gsub", c.gsub.toFixed(1)+" kN/m³");
+  setRow("r_e",  c.e.toFixed(2));
+  setRow("r_n",  (c.n*100).toFixed(0)+" %");
+  setRow("r_w",  (c.w*100).toFixed(0)+" %");
+  setRow("r_sr", (c.Sr*100).toFixed(0)+" %");
+  document.getElementById("vsV").textContent=st.Vs.toFixed(0)+" cm³";
+  document.getElementById("vwV").textContent=st.Vw.toFixed(0)+" cm³";
+  document.getElementById("vaV").textContent=st.Va.toFixed(0)+" cm³";
+  document.getElementById("rsV").textContent=st.rs.toFixed(2)+" g/cm³";
+  document.getElementById("rwV").textContent=st.rw.toFixed(2)+" g/cm³";
+  document.getElementById("ms").value=Math.round(ms());
+  document.getElementById("mw").value=Math.round(mw());
+  document.getElementById("vs").value=st.Vs;
+  document.getElementById("vw").value=st.Vw;
+  document.getElementById("va").value=st.Va;
+  document.getElementById("rs").value=st.rs;
+  document.getElementById("rw").value=st.rw;
+  draw();
+}
+
+function bindRange(id,setter){ document.getElementById(id).addEventListener("input",e=>{ setter(parseFloat(e.target.value)); render(false); }); }
+bindRange("vs",v=>st.Vs=v);
+bindRange("vw",v=>st.Vw=v);
+bindRange("va",v=>st.Va=v);
+bindRange("rs",v=>{ st.rs=v; });
+bindRange("rw",v=>{ st.rw=v; });
+document.getElementById("ms").addEventListener("change",e=>{
+  const m=clamp(parseFloat(e.target.value)||0, RS[0]*st.Vs, RS[1]*st.Vs);
+  st.rs=clamp(m/st.Vs, RS[0], RS[1]); render(true);
+});
+document.getElementById("mw").addEventListener("change",e=>{
+  const m=Math.max(0, parseFloat(e.target.value)||0);
+  st.rw=clamp(st.Vw>0? clamp(m/st.Vw,RW[0],RW[1]) : st.rw, RW[0],RW[1]); render(true);
+});
+
+function preset(kind){
+  if(kind==="sand"){ Object.assign(st,{Vs:100,Vw:22,Va:33,rs:2.65,rw:1.00}); }
+  if(kind==="clay"){ Object.assign(st,{Vs:100,Vw:90,Va:10,rs:2.70,rw:1.00}); }
+  if(kind==="silt"){ Object.assign(st,{Vs:100,Vw:80,Va:0, rs:2.68,rw:1.00}); }
+  render(true);
+}
+
+function chosen(name){ const el=document.querySelector(`input[name="${name}"]:checked`); return el?el.value:null; }
+document.querySelectorAll('.opts').forEach(box=>{
+  box.addEventListener('change',()=>{
+    box.querySelectorAll('label').forEach(l=>l.classList.toggle('chosen', l.querySelector('input').checked));
+    const ready = chosen('s1') && chosen('s2');
+    const b=document.getElementById('startBtn'); if(b) b.disabled=!ready;
+    document.getElementById('tab1').disabled = !ready;
+    document.getElementById('tab2').disabled = !ready;
+    sparkFb('s1','a','Oikein! \ud83c\udf89 Hyv\u00e4\u00e4 ty\u00f6t\u00e4. (Correct, nice work.) The water adds weight to the soil.',
+                     'Good prediction! \ud83d\udd0d Keep it in mind and find out for yourself in the simulation.');
+    sparkFb('s2','b','Oikein! \ud83c\udf89 Loistavaa. (Correct, excellent.) Tapping packs the grains and leaves less empty space.',
+                     'Nice guess! \ud83d\udd0d Let us check it together in the simulation.');
+    fb('i1','a','Correct. The void ratio (huokosluku) depends only on volumes, not on water mass.');
+    fb('i2','a','Correct. For dry soil, the bulk and dry unit weights are equal (γ = γd).');
+  });
+});
+function fb(name,correct,msg){
+  const v=chosen(name); const el=document.getElementById(name+'fb'); if(!el||!v) return;
+  el.textContent = v===correct ? msg : 'Have another look.';
+  el.style.color = v===correct ? '#2f6f4f' : '#b25';
+}
+function sparkFb(name,correct,okMsg,noMsg){
+  const v=chosen(name); const el=document.getElementById(name+'fb'); if(!el||!v) return;
+  el.textContent = v===correct ? okMsg : noMsg;
+  el.style.color = v===correct ? '#2f6f4f' : '#5d6b62';
+}
+
+function goAct(i){
+  if((i===1||i===2) && !(chosen('s1')&&chosen('s2'))) return;
+  for(let k=0;k<3;k++){
+    document.getElementById('act'+k).classList.toggle('show',k===i);
+    document.getElementById('tab'+k).classList.toggle('active',k===i);
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+render(false);
+</script>
+</body>
+</html>
